@@ -101,7 +101,8 @@ struct EventInfo_t {
   // --- BEGIN Query interface -----------------------------------------------
   /// @name Query interface
   /// @{
-
+  bool hasFullCryostat() const { return fHasFullCryostat; }
+  /*
   /// Returns the number of weak charged current interactions in the event.
   unsigned int nWeakChargedCurrentInteractions() const
     { return fInteractions[itWCC]; }
@@ -217,13 +218,15 @@ struct EventInfo_t {
   void AddVertex(geo::Point_t const& vertex) { fVertices.push_back(vertex); }
   
   std::vector<geo::Point_t> fVertices; ///< Position of all vertices.
-
+  */
+  void SetHasFullCryostat(bool full = false) { fHasFullCryostat = full; }
   /// @}
   // --- END Set interface ---------------------------------------------------
 
   /// Prints the content of the object into a stream.
   void dump(std::ostream& out) const
     {
+      /*
       out << "Event contains:";
       if (isNeutrino()) {
         if (nWeakChargedCurrentInteractions())
@@ -261,6 +264,7 @@ struct EventInfo_t {
         << " marked as in the active volume of the detector.";
       out << "\n";
       out.flush();
+      */
     } // dump()
 
     private:
@@ -293,6 +297,8 @@ struct EventInfo_t {
   
   /// Whether the event has activity inside the active volume.
   bool fInActiveVolume { false };
+
+  bool fHasFullCryostat { false };
   
   //std::vector<geo::Point_t> fVertices; ///< Position of all vertices.
   
@@ -361,17 +367,17 @@ PlotCategories_t const PlotCategories {
 
   PlotCategory{
     "All"
-    },
-
+    }
+    /*
   PlotCategory{
-	"All nu_mu", "nu_mu",
+  "All nu_mu", "nu_mu",
     [](EventInfo_t const& info){ return info.isNu_mu(); }
-	},
+  },
 
   PlotCategory{
-	"All nu_e", "nu_e",
+  "All nu_e", "nu_e",
     [](EventInfo_t const& info){ return info.isNu_e(); }
-	},
+  },
 
   PlotCategory{
     "NuCC", "CC",
@@ -402,7 +408,7 @@ PlotCategories_t const PlotCategories {
     "NuNC_e", "NC_e",
     [](EventInfo_t const& info){ return (info.isWeakNeutralCurrent() & info.isNu_e()); }
     }
-
+  */
 }; // PlotCategories[]
 
 
@@ -2083,12 +2089,14 @@ void icarus::trigger::TriggerEfficiencyPlots::initializeEventPlots
 bool icarus::trigger::TriggerEfficiencyPlots::shouldPlotEvent
   (EventInfo_t const& eventInfo) const
 {
-  if (fPlotOnlyActiveVolume
-    && eventInfo.hasVertex() && !eventInfo.isInActiveVolume())
-  {
+  //if (fPlotOnlyActiveVolume
+  //  && eventInfo.hasVertex() && !eventInfo.isInActiveVolume())
+  //{
+  //  return false;
+  //}
+  if (!eventInfo.hasFullCryostat()){
     return false;
   }
-  
   return true;
 } // icarus::trigger::TriggerEfficiencyPlots::shouldPlotEvent()
 
@@ -2115,9 +2123,24 @@ auto icarus::trigger::TriggerEfficiencyPlots::extractEventInfo
   
   EventInfo_t info;
   
+  auto const& waveforms
+    = *(event.getValidHandle<std::vector<raw::OpDetWaveform>>(art::InputTag{ "daqPMT" }));
+
+  int cryo0Counter = 0;
+  int cryo1Counter = 0;
+  for (auto const& waveform : waveforms) {
+    if (waveform.ChannelNumber() < 180) { cryo0Counter++; }
+    if (waveform.ChannelNumber() >= 180) { cryo1Counter++; }
+  }
+
+  if (cryo0Counter == 180 || cryo1Counter == 180) {
+    info.SetHasFullCryostat(true);
+  }
+
   //
   // generator information
   //
+  /*
   for (art::InputTag const& inputTag: fGeneratorTags) {
   
     auto const& truthRecords
@@ -2220,8 +2243,9 @@ auto icarus::trigger::TriggerEfficiencyPlots::extractEventInfo
   info.SetDepositedEnergyInActiveVolumeInSpill(inSpillActiveEnergy);
   
   mf::LogTrace(fLogCategory) << "Event " << event.id() << ": " << info;
-  
+  */
   return info;
+
 } // icarus::trigger::TriggerEfficiencyPlots::extractEventInfo()
 
 
@@ -2402,6 +2426,10 @@ void icarus::trigger::TriggerEfficiencyPlots::plotResponses(
     
     if (fResponseTree) fResponseTree->assignResponse(iThr, iReq, fired);
     
+    if (fired) {
+      std::cout << "event has trigger" << std::endl;
+    }
+
     std::string const minCountStr { "Req" + std::to_string(minCount) };
     
     // go through all the plot categories this event qualifies for
@@ -2413,6 +2441,7 @@ void icarus::trigger::TriggerEfficiencyPlots::plotResponses(
       get.Eff("Eff"s).Fill(fired, minCount);
       
       // trigger time (if any)
+      /*
       if (fired) {
         get.Hist2D("TriggerTick"s).Fill(minCount, lastMinCount.first);
         if (minCount == 1) {
@@ -2440,12 +2469,12 @@ void icarus::trigger::TriggerEfficiencyPlots::plotResponses(
       if (fired) {
         getTrigEff.Hist("TriggerTick"s).Fill(lastMinCount.first);
       }
-
+      */
       
       //
       // plotting split for triggering/not triggering events
       //
-      
+      /*
       HistGetter const getTrig
         { getTrigEff.box().demandSandbox(fired? "triggering": "nontriggering") };
       
@@ -2459,19 +2488,19 @@ void icarus::trigger::TriggerEfficiencyPlots::plotResponses(
       TH2& vertexHist = getTrig.Hist2D("InteractionVertexYZ"s);
       for (auto const& point: eventInfo.fVertices)
         vertexHist.Fill(point.Z(), point.Y());
-      
+      */
 
       //
       // non triggered events
       //
-      if (!fired && minCount == 1 ) { // I only am interested in events that aren't triggered when there is a low multiplicity requirement
+      /*if (!fired && minCount == 1 ) { // I only am interested in events that aren't triggered when there is a low multiplicity requirement
         get.Hist("EnergyInSpill_NoTrig"s).Fill(double(eventInfo.DepositedEnergyInSpill()));
         get.Hist("NeutrinoEnergy_NoTrig"s).Fill(double(eventInfo.NeutrinoEnergy()));
         get.Hist("InteractionType_NoTrig"s).Fill(eventInfo.InteractionType());
         get.Hist("LeptonEnergy_NoTrig"s).Fill(double(eventInfo.LeptonEnergy()));
         //getHist("NucleonEnergy_NoTrig"s)->Fill(double(eventInfo.NucleonEnergy())); 
       }
-
+      */
     } // for all qualifying plot categories
     
   } // for all thresholds
@@ -2481,8 +2510,8 @@ void icarus::trigger::TriggerEfficiencyPlots::plotResponses(
    * the same value is plotted in all plot sets.
    * 
    */
-  for (PlotSandbox const& plotSet: plotSets) {
-    
+  //for (PlotSandbox const& plotSet: plotSets) {
+    /*
     HistGetter const get(plotSet);
     
     // number of primitives
@@ -2500,8 +2529,8 @@ void icarus::trigger::TriggerEfficiencyPlots::plotResponses(
     TH2& vertexHist = get.Hist2D("InteractionVertexYZ"s);
     for (auto const& point: eventInfo.fVertices)
       vertexHist.Fill(point.Z(), point.Y());
-    
-  } // for 
+    */
+  //} // for 
 
 } // icarus::trigger::TriggerEfficiencyPlots::plotResponses()
 
@@ -2616,7 +2645,7 @@ EventInfoTree::EventInfoTree(TTree& tree): TreeHolder(tree) {
 
 //------------------------------------------------------------------------------
 void EventInfoTree::assignEvent(EventInfo_t const& info) {
-
+/*
   fCC       = info.nWeakChargedCurrentInteractions();
   fNC       = info.nWeakNeutralCurrentInteractions();
   fIntType  = info.InteractionType();
@@ -2628,7 +2657,7 @@ void EventInfoTree::assignEvent(EventInfo_t const& info) {
   fActiveE      = static_cast<Double_t>(info.DepositedEnergyInActiveVolume());
   fSpillActiveE = static_cast<Double_t>(info.DepositedEnergyInSpillInActiveVolume());
   fInActive     = static_cast<Bool_t>(info.isInActiveVolume());
-  
+*/
 } // EventInfoTree::assignEvent()
 
 
