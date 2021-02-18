@@ -13,6 +13,7 @@ icarus_simple_flashmatch_0: {
   LightWindowEnd: 0.08 # us, wrt flash time
   SelectNeutrino: true
   UseOppVolMetric: true
+  StoreCheatMCT0: true
   # UseCalo: false
   InputFileName: "FlashMatch/fm_metrics_icarus.root"
   NoAvailableMetrics: false
